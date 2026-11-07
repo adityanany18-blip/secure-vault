@@ -363,14 +363,7 @@ export class FileManager implements IFileOperations {
       data: { isDeleted: true },
     });
 
-    // Clean up physical file securely
-    try {
-      const storagePath = path.join(this.storageDirectory, file.storageKey);
-      await fs.unlink(storagePath);
-    } catch {
-      // file might have been cleaned up
-    }
-
+  
     await auditLogService.log({
       actorId,
       action: 'FILE_DELETED',
