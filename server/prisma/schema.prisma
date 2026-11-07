@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         String    @default("VIEWER") // "ADMIN" | "EDITOR" | "VIEWER"
+  status       String    @default("ACTIVE") // "ACTIVE" | "INACTIVE" | "PENDING"
+  avatarUrl    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  files               File[]               @relation("FileOwner")
+  permissions         Permission[]
+  auditLogs           AuditLog[]           @relation("AuditActor")
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  notifications       Notification[]
+  uploadedVersions    FileVersion[]        @relation("VersionUploader")
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model File {
+  id                String   @id @default(uuid())
+  originalName      String
+  storageKey        String   @unique
+  mimeType          String
+  fileSize          Int
+  ownerId           String
+  encryptionVersion String   @default("v1-aes-256-gcm")
+  nonce             String // hex or base64 encoded IV (96-bit for GCM)
+  authenticationTag String // hex or base64 encoded GCM auth tag (128-bit)
+  folder            String   @default("General")
+  isDeleted         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  owner       User          @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  permissions Permission[]
+  versions    FileVersion[]
+  auditLogs   AuditLog[]
+
+  @@index([ownerId])
+  @@index([folder])
+  @@index([isDeleted])
+  @@index([createdAt])
+}
+
+model FileVersion {
+  id                String   @id @default(uuid())
+  fileId            String
+  versionNumber     Int
+  storageKey        String   @unique
+  fileSize          Int
+  nonce             String
+  authenticationTag String
+  encryptionVersion String   @default("v1-aes-256-gcm")
+  uploadedById      String
+  createdAt         DateTime @default(now())
+
+  file       File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation("VersionUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+  @@index([versionNumber])
+}
+
+model Permission {
+  id                   String   @id @default(uuid())
+  userId               String
+  fileId               String
+  canRead              Boolean  @default(false)
+  canDownload          Boolean  @default(false)
+  canUpdate            Boolean  @default(false)
+  canDelete            Boolean  @default(false)
+  canShare             Boolean  @default(false)
+  canManagePermissions Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fileId])
+  @@index([userId])
+  @@index([fileId])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorId      String?
+  action       String // e.g. "AUTH_LOGIN_SUCCESS", "FILE_UPLOAD", "FILE_DOWNLOAD"
+  fileId       String?
+  targetUserId String?
+  timestamp    DateTime @default(now())
+  result       String // "SUCCESS" | "FAILURE" | "DENIED"
+  metadata     String? // JSON string containing contextual details (safe from secrets)
+  ipAddress    String?
+  userAgent    String?
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  file  File? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([action])
+  @@index([fileId])
+  @@index([timestamp])
+  @@index([result])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO") // "INFO" | "SUCCESS" | "WARNING" | "ERROR"
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+

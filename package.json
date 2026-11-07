@@ -1,0 +1,27 @@
+{
+  "name": "securevault",
+  "version": "1.0.0",
+  "description": "SecureVault — Enterprise Secure File Sharing and Access Control System with AES-256-GCM & RBAC",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build:server": "npm --prefix server run build",
+    "build:client": "npm --prefix client run build",
+    "build": "npm run build:server && npm run build:client",
+    "test": "npm --prefix server run test",
+    "seed": "npm --prefix server run prisma:seed"
+  },
+  "keywords": [
+    "file-sharing",
+    "aes-256-gcm",
+    "rbac",
+    "oop",
+    "argon2id",
+    "prisma",
+    "react",
+    "typescript"
+  ],
+  "author": "Antigravity Engineering",
+  "license": "MIT"
+}
+
