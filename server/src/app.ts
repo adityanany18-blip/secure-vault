@@ -27,17 +27,33 @@ app.use(
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow localhost frontend or same-origin
-      if (!origin || origin.startsWith('http://localhost:')) {
-        callback(null, true);
-      } else {
-        callback(null, true);
+      if (!origin) {
+        return callback(null, true);
       }
+
+      const allowedOrigins = config.corsOrigin
+        .split(',')
+        .map((value) => value.trim().replace(/\/$/, ''))
+        .filter(Boolean);
+
+      const normalizedOrigin = origin.replace(/\/$/, '');
+
+      if (
+        config.nodeEnv !== 'production' &&
+        origin.startsWith('http://localhost:')
+      ) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
   })
 );
-
 app.use(cookieParser(config.cookieSecret));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

@@ -5,14 +5,36 @@ interface RequestOptions extends RequestInit {
 }
 
 class ApiService {
-  private async request<T = any>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+  private getToken(): string | null {
+    try {
+      return localStorage.getItem('securevault_token');
+    } catch {
+      return null;
+    }
+  }
+
+  private setToken(token?: string | null) {
+    try {
+      if (token) {
+        localStorage.setItem('securevault_token', token);
+      } else {
+        localStorage.removeItem('securevault_token');
+      }
+    } catch {
+      // localStorage may be unavailable
+    }
+  }
+
+  public async request<T = any>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { data, headers, ...customConfig } = options;
     const isFormData = data instanceof FormData;
+    const token = this.getToken();
 
     const config: RequestInit = {
       method: options.method || 'GET',
       headers: {
         ...(!isFormData && { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
       credentials: 'include', // Includes HTTP-only cookies
@@ -25,14 +47,14 @@ class ApiService {
 
     const response = await fetch(`${API_BASE}${endpoint}`, config);
 
-    // Handle file downloads (blob streams)
-    const contentType = response.headers.get('content-type') || '';
+    // Handle file downloads and preview blobs
     if (
       response.ok &&
-      (options.method === 'GET' &&
-        (endpoint.includes('/download') || endpoint.includes('/preview')))
+      options.method === 'GET' &&
+      (endpoint.includes('/download') || endpoint.includes('/preview'))
     ) {
-      if (endpoint.includes('/download')) {
+      const contentType = response.headers.get('content-type') || '';
+      if (endpoint.includes('/download') || contentType.startsWith('image/') || contentType === 'application/pdf') {
         const blob = await response.blob();
         return blob as unknown as T;
       }
@@ -58,15 +80,27 @@ class ApiService {
 
   // Auth Endpoints
   public async login(credentials: { email: string; password: string }) {
-    return this.request('/auth/login', { method: 'POST', data: credentials });
+    const res = await this.request('/auth/login', { method: 'POST', data: credentials });
+    if (res?.token) {
+      this.setToken(res.token);
+    }
+    return res;
   }
 
   public async register(userData: { name: string; email: string; password: string }) {
-    return this.request('/auth/register', { method: 'POST', data: userData });
+    const res = await this.request('/auth/register', { method: 'POST', data: userData });
+    if (res?.token) {
+      this.setToken(res.token);
+    }
+    return res;
   }
 
   public async logout() {
-    return this.request('/auth/logout', { method: 'POST' });
+    try {
+      await this.request('/auth/logout', { method: 'POST' });
+    } finally {
+      this.setToken(null);
+    }
   }
 
   public async getMe() {
@@ -161,7 +195,13 @@ class ApiService {
   }
 
   public async previewFileText(fileId: string): Promise<string> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
     const res = await fetch(`${API_BASE}/files/${fileId}/preview`, {
+      headers,
       credentials: 'include',
     });
     if (!res.ok) {

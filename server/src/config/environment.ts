@@ -17,3 +17,16 @@ export const config = {
   cookieSecret: process.env.COOKIE_SECRET || 'cookie-secret-securevault-2026',
 };
 
+if (config.nodeEnv === 'production') {
+  if (config.jwtSecret === 'fallback-super-secret-jwt-key-2026-production') {
+    console.warn(
+      '[SECURITY WARNING] Production environment detected with default fallback JWT_SECRET. Please set JWT_SECRET in environment variables.'
+    );
+  }
+  if (config.cookieSecret === 'cookie-secret-securevault-2026') {
+    console.warn(
+      '[SECURITY WARNING] Production environment detected with default fallback COOKIE_SECRET. Please set COOKIE_SECRET in environment variables.'
+    );
+  }
+}
+

@@ -9,6 +9,7 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Port: ${PORT} | Environment: ${config.nodeEnv}`);
   console.log(`🛡️  Encryption: AES-256-GCM Hardware-Accelerated`);
   console.log(`🗄️  Database: Prisma ORM Active`);
+  console.log(`📦 Storage Directory: ${config.storageDir}`);
   console.log(`====================================================`);
 });
 
